@@ -41,7 +41,7 @@ func main() {
 	tags := &[]ecs.DescribeInstancesTag{
 		{
 			Value: "true",
-			Key:   "rnode20",
+			Key:   "yingyanubuntu",
 		},
 	}
 
@@ -103,6 +103,10 @@ func GetInstanceIDsByNotEip(client *ecs.Client, tag *[]ecs.DescribeInstancesTag,
 	response := GetInstancesByRequest(err, client, request)
 
 	pages := response.TotalCount / response.PageSize
+
+	if pages == 0 {
+		pages = 1
+	}
 
 	log.Printf("按tag查询实例总数: %v", response.TotalCount)
 
@@ -175,7 +179,7 @@ func AssociateEips(ecsClient *ecs.Client, vpcClient *vpc.Client, tag *[]ecs.Desc
 	// 按tag获取没有eip的主机实例
 	instances := GetInstanceIDsByNotEip(ecsClient, tag, err)
 	log.Printf("按tag查询没有绑定Eip的实例数: %v", len(instances))
-	// 获取空间Eips
+	// 获取空闲Eips
 	eipAddresses := GetAvailableEips(vpcClient, err)
 
 	// 空闲eip不足的数量
@@ -186,17 +190,20 @@ func AssociateEips(ecsClient *ecs.Client, vpcClient *vpc.Client, tag *[]ecs.Desc
 	if AddEipCounts > 0 {
 		// 空闲eip不足的数量，重新申请eip 并加入到共享带宽
 		AddEipToCommonBandwidth(AddEipCounts, bandwidthPackageId, err, vpcClient)
-	} else {
-		// 释放共享带宽中的空闲Eip
-		ReleaseEipFromCommonBandwidth(vpcClient, err, bandwidthPackageId)
+
+		// 重新获取空闲Eips
+		eipAddresses = GetAvailableEips(vpcClient, err)
 	}
 
 	for num, instance := range instances {
-		fmt.Sprintf("绑定 Eip: %s, InstanceId: %s", eipAddresses[num].IpAddress, instance)
+		log.Printf("绑定 Eip: %s, InstanceId: %s", eipAddresses[num].IpAddress, instance.InstanceId)
 
-		AssociateEip(eipAddresses[num].AllocationId, fmt.Sprint(instance.EipAddress), vpcClient)
-		num++
+		AssociateEip(eipAddresses[num].AllocationId, instance.InstanceId, vpcClient)
+		//num++
 	}
+
+	// 释放共享带宽中的空闲Eip
+	ReleaseEipFromCommonBandwidth(vpcClient, err, bandwidthPackageId)
 }
 
 // 修改实例名称
