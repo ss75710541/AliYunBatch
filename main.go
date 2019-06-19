@@ -6,6 +6,7 @@ import (
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/ecs"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/vpc"
 	"log"
+	"math"
 	"os"
 	"time"
 )
@@ -69,7 +70,7 @@ func GetInstanceEIPsByTags(client *ecs.Client, err error, tag *[]ecs.DescribeIns
 
 	log.Printf("按tag查询到的实例总数: %v", response.TotalCount)
 
-	pages := response.TotalCount / response.PageSize
+	pages := int(math.Ceil(float64(response.TotalCount) / float64(response.PageSize)))
 
 	var instances []ecs.Instance
 
@@ -102,11 +103,7 @@ func GetInstanceIDsByNotEip(client *ecs.Client, tag *[]ecs.DescribeInstancesTag,
 
 	response := GetInstancesByRequest(err, client, request)
 
-	pages := response.TotalCount / response.PageSize
-
-	if pages == 0 {
-		pages = 1
-	}
+	pages := int(math.Ceil(float64(response.TotalCount) / float64(response.PageSize)))
 
 	log.Printf("按tag查询实例总数: %v", response.TotalCount)
 
