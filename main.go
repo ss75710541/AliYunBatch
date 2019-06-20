@@ -32,35 +32,89 @@ func main() {
 		log.Fatalln("环境变量 ACCESS_KEY_SECRET 不能为空！")
 	}
 
-	ecsClient, err := ecs.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
-	vpcClient, err := vpc.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
-
-	// 张家口机房共享带宽ID
-	bandwidthPackageId := "cbwp-8vbb2ec1dg7ew7quan51t"
-
 	// 查询ecs主机的tag
 	tags := &[]ecs.DescribeInstancesTag{
 		{
 			Value: "true",
-			Key:   "yingyanubuntu",
+			Key:   "rnode20",
 		},
 	}
+	// 按tags 查询主机，并修改实例规格
+	ModifyInstancesTypeByTags(tags)
 
+	// 按tags 分配主机Eips
+	//AutoAssociateEips(tags)
+
+	// 修改rnodes 实例名称
+	//ModifyInstancesNameByStartRnodeID(tags, 9251)
+}
+
+func ModifyInstancesTypeByTags(tags *[]ecs.DescribeInstancesTag) {
+	ecsClient, err := ecs.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
+	instances := GetInstanceEIPsByTags(ecsClient, err, tags)
+	for _, instance := range instances {
+		StopInstance(instance.InstanceId, ecsClient)
+
+		ModifyEcsInstanceType(instance.InstanceId, "ecs.mn4.small", ecsClient)
+
+		StartInstance(instance.InstanceId, ecsClient)
+	}
+}
+
+func ModifyEcsInstanceType(instanceId string, instanceType string, ecsClient *ecs.Client) {
+	request := ecs.CreateModifyInstanceSpecRequest()
+	request.InstanceType = instanceType
+	request.InstanceId = instanceId
+	response, err := ecsClient.ModifyInstanceSpec(request)
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+	fmt.Printf("modiry %s to instanceTyep %s %s\n", instanceId, instanceType, response.IsSuccess())
+}
+
+func StopInstance(instanceId string, ecsClient *ecs.Client) {
+	request := ecs.CreateStopInstanceRequest()
+	request.InstanceId = instanceId
+	response, err := ecsClient.StopInstance(request)
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+	fmt.Printf("stop %s %s.\n", instanceId, response.IsSuccess())
+}
+
+func StartInstance(instanceId string, ecsClient *ecs.Client) {
+	request := ecs.CreateStartInstanceRequest()
+	request.InstanceId = instanceId
+	response, err := ecsClient.StartInstance(request)
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+	fmt.Printf("start %s %s.\n", instanceId, response.IsSuccess())
+}
+
+func ModifyInstancesNameByStartRnodeID(tags *[]ecs.DescribeInstancesTag,  startRnodeID int){
+
+	ecsClient, err := ecs.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
+	// 批量修改按tag查询的主机实例名
+	ModifyInstancesNameByRnodeID(ecsClient, err, tags, startRnodeID)
+}
+
+func AutoAssociateEips(tags *[]ecs.DescribeInstancesTag) {
+	ecsClient, err := ecs.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
+	vpcClient, err := vpc.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
+	// 张家口机房共享带宽ID
+	bandwidthPackageId := "cbwp-8vbb2ec1dg7ew7quan51t"
 	// AssociateEips 指定tag，给没有绑定eip的主机实例 绑定Eip
 	AssociateEips(ecsClient, vpcClient, tags, bandwidthPackageId, err)
-	//
-	//// rnode起始ID
-	//rnodeID := 9251
-	//// 批量修改按tag查询的主机实例名
-	//ModifyInstancesName(ecsClient, err, tags, rnodeID)
-
 }
+
+
 
 func GetInstanceEIPsByTags(client *ecs.Client, err error, tag *[]ecs.DescribeInstancesTag) []ecs.Instance {
 
 	request := ecs.CreateDescribeInstancesRequest()
 
-	request.Status = "running"
+	//request.Status = "running"
 	request.PageNumber = "1"
 	request.Tag = tag
 
@@ -69,6 +123,8 @@ func GetInstanceEIPsByTags(client *ecs.Client, err error, tag *[]ecs.DescribeIns
 	response := GetInstancesByRequest(err, client, request)
 
 	log.Printf("按tag查询到的实例总数: %v", response.TotalCount)
+
+	log.Println(response.String())
 
 	pages := int(math.Ceil(float64(response.TotalCount) / float64(response.PageSize)))
 
@@ -82,9 +138,7 @@ func GetInstanceEIPsByTags(client *ecs.Client, err error, tag *[]ecs.DescribeIns
 		}
 
 		for _, item := range response.Instances.Instance {
-			if item.EipAddress.IpAddress != "" {
-				instances = append(instances, item)
-			}
+			instances = append(instances, item)
 		}
 	}
 
@@ -220,7 +274,7 @@ func ModifyInstanceName(ecsClient *ecs.Client, instanceID string, instanceName s
 	}
 }
 
-func ModifyInstancesName(ecsClient *ecs.Client, err error, tags *[]ecs.DescribeInstancesTag, rnodeID int) {
+func ModifyInstancesNameByRnodeID(ecsClient *ecs.Client, err error, tags *[]ecs.DescribeInstancesTag, rnodeID int) {
 	// 指定tag获取实例
 	instances := GetInstanceEIPsByTags(ecsClient, err, tags)
 	for _, instance := range instances {
