@@ -39,11 +39,11 @@ func main() {
 			Key:   "rnode20",
 		},
 	}
-	// 按tags 查询主机，并修改实例规格
-	ModifyInstancesTypeByTags(tags)
+	// 按tags 查询主机，并修改实例规格（包含自动重启主机）
+	//ModifyInstancesTypeByTags(tags)
 
 	// 按tags 分配主机Eips
-	//AutoAssociateEips(tags)
+	AutoAssociateEips(tags)
 
 	// 修改rnodes 实例名称
 	//ModifyInstancesNameByStartRnodeID(tags, 9251)
