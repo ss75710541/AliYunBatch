@@ -193,9 +193,33 @@ func GetInstancesByRequest(err error, client *ecs.Client, request *ecs.DescribeI
 func GetAvailableEips(client *vpc.Client, err error) []vpc.EipAddress {
 	request := vpc.CreateDescribeEipAddressesRequest()
 	request.Status = "Available"
+	request.PageNumber = "1"
 	response, err := client.DescribeEipAddresses(request)
 	if err != nil {
 		fmt.Print(err.Error())
+		return nil
+	}
+
+	pages := int(math.Ceil(float64(response.TotalCount) / float64(response.PageSize)))
+
+	log.Printf("可用Eips总数: %v", response.TotalCount)
+
+	eipAddress := response.EipAddresses.EipAddress
+
+	for i := 1; i <= pages; i++ {
+		request.PageNumber = requests.NewInteger(i)
+
+		if i > 1 {
+			response, err =  client.DescribeEipAddresses(request)
+			if err != nil {
+				fmt.Print(err.Error())
+				return nil
+			}
+		}
+
+		for _, item := range response.EipAddresses.EipAddress {
+			eipAddress = append(eipAddress, item)
+		}
 	}
 	return response.EipAddresses.EipAddress
 }
