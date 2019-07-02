@@ -36,7 +36,7 @@ func main() {
 	tags := &[]ecs.DescribeInstancesTag{
 		{
 			Value: "true",
-			Key:   "rnode20",
+			Key:   "bfsdev",
 		},
 	}
 	// 按tags 查询主机，并修改实例规格（包含自动重启主机）
@@ -51,7 +51,7 @@ func main() {
 
 func ModifyInstancesTypeByTags(tags *[]ecs.DescribeInstancesTag) {
 	ecsClient, err := ecs.NewClientWithAccessKey(regionId, accessKeyId, accessKeySecret)
-	instances := GetInstanceEIPsByTags(ecsClient, err, tags)
+	instances := GetInstancesByTags(ecsClient, err, tags)
 	for _, instance := range instances {
 		StopInstance(instance.InstanceId, ecsClient)
 
@@ -110,7 +110,7 @@ func AutoAssociateEips(tags *[]ecs.DescribeInstancesTag) {
 
 
 
-func GetInstanceEIPsByTags(client *ecs.Client, err error, tag *[]ecs.DescribeInstancesTag) []ecs.Instance {
+func GetInstancesByTags(client *ecs.Client, err error, tag *[]ecs.DescribeInstancesTag) []ecs.Instance {
 
 	request := ecs.CreateDescribeInstancesRequest()
 
@@ -300,7 +300,7 @@ func ModifyInstanceName(ecsClient *ecs.Client, instanceID string, instanceName s
 
 func ModifyInstancesNameByRnodeID(ecsClient *ecs.Client, err error, tags *[]ecs.DescribeInstancesTag, rnodeID int) {
 	// 指定tag获取实例
-	instances := GetInstanceEIPsByTags(ecsClient, err, tags)
+	instances := GetInstancesByTags(ecsClient, err, tags)
 	for _, instance := range instances {
 		fmt.Printf("instanceid %s , hostname: %s , pip: %s , eip: %s\n", instance.InstanceId, fmt.Sprintf("rnode%d.hisun.com", rnodeID), instance.VpcAttributes.PrivateIpAddress.IpAddress[0], instance.EipAddress.IpAddress)
 		ModifyInstanceName(ecsClient, instance.InstanceId, fmt.Sprintf("rnode%d", rnodeID), err)
